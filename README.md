@@ -3,7 +3,7 @@
 
 # Import One Million Rows To The Database (Laravel/PHP)
 
-This is the source code of the [video]() for the Laravel YouTube channel, where I try different approaches to import one million rows from a CSV file to a MySQL database.
+This is the source code of the [video](https://youtu.be/CAi4WEKOT4A) for the Laravel YouTube channel, where I try different approaches to import one million rows from a CSV file to a MySQL database.
 
 This repo includes:
 
