@@ -2,12 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Customer;
 use App\Traits\ImportHelper;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Concurrency;
-use Illuminate\Support\Facades\DB;
-use PDO;
 
 class CustomersImportCommand extends Command
 {
