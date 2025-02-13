@@ -243,7 +243,44 @@ trait ImportHelper
             ->each(fn($chunk) => Customer::insert($chunk->all()));
     }
 
-    private function import06ManualStreaming(string $filePath): void
+    private function import06LazyCollectionWithChunkingAndPdo(string $filePath): void
+    {
+        // 100 10ms / 0.23MB
+        // 1K 51ms / 0.23MB
+        // 10K 234ms / 0.23MB
+        // 100K 2s / 0.23MB
+        // 1M 20s / 0.23MB
+        $now = now()->format('Y-m-d H:i:s');
+        $pdo = DB::connection()->getPdo();
+
+        LazyCollection::make(function () use ($filePath) {
+            $handle = fopen($filePath, 'rb');
+            fgetcsv($handle); // skip header
+
+            while (($line = fgetcsv($handle)) !== false) {
+                yield $line;
+            }
+            fclose($handle);
+        })
+            ->filter(fn($row) => filter_var($row[2], FILTER_VALIDATE_EMAIL))  // Nice filtering syntax
+            ->chunk(1000)
+            ->each(function($chunk) use ($pdo, $now) {
+                // Build SQL for this chunk
+                $placeholders = rtrim(str_repeat('(?,?,?,?,?,?,?,?,?),', $chunk->count()), ',');
+                $sql = "INSERT INTO customers (custom_id, name, email, company, city, country, birthday, created_at, updated_at)
+                VALUES " . $placeholders;
+
+                // Prepare values
+                $values = $chunk->flatMap(fn($row) => [
+                    $row[0], $row[1], $row[2], $row[3], $row[4],
+                    $row[5], $row[6], $now, $now
+                ])->all();
+
+                $pdo->prepare($sql)->execute($values);
+            });
+    }
+
+    private function import07ManualStreaming(string $filePath): void
     {
         // Read and insert in chunks
         // Better memory management
@@ -284,7 +321,68 @@ trait ImportHelper
         fclose($handle);
     }
 
-    private function import07PDOPrepared(string $filePath): void
+    private function import08ManualStreamingWithPdo(string $filePath) : void
+    {
+        // 100 7ms / 0MB
+        // 1K 78ms / 0MB
+        // 10K 328ms / 0MB
+        // 100K 2.9s / 0MB
+        // 1M 28s / 0MB
+        $data = [];
+        $handle = fopen($filePath, 'rb');
+        fgetcsv($handle); // skip header
+        $now = now()->format('Y-m-d H:i:s');
+        $pdo = DB::connection()->getPdo();
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $data[] = [
+                'custom_id' => $row[0],
+                'name' => $row[1],
+                'email' => $row[2],
+                'company' => $row[3],
+                'city' => $row[4],
+                'country' => $row[5],
+                'birthday' => $row[6],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            if (count($data) === 1000) {
+                // Build the SQL query for the chunk
+                $columns = array_keys($data[0]);
+                $placeholders = rtrim(str_repeat('(?,?,?,?,?,?,?,?,?),', count($data)), ',');
+
+                $sql = "INSERT INTO customers (" . implode(',', $columns) . ") VALUES " . $placeholders;
+
+                // Flatten the data array for the query
+                $values = [];
+                foreach ($data as $row) {
+                    $values = array_merge($values, array_values($row));
+                }
+
+                $pdo->prepare($sql)->execute($values);
+                $data = [];
+            }
+        }
+
+        if (!empty($data)) {
+            $columns = array_keys($data[0]);
+            $placeholders = rtrim(str_repeat('(?,?,?,?,?,?,?,?,?),', count($data)), ',');
+
+            $sql = "INSERT INTO customers (" . implode(',', $columns) . ") VALUES " . $placeholders;
+
+            $values = [];
+            foreach ($data as $row) {
+                $values = array_merge($values, array_values($row));
+            }
+
+            $pdo->prepare($sql)->execute($values);
+        }
+
+        fclose($handle);
+    }
+
+    private function import09PDOPrepared(string $filePath): void
     {
         // Direct database connection with prepared statements
         // 100 41ms / 0 MB
@@ -322,7 +420,7 @@ trait ImportHelper
         }
     }
 
-    private function import08PDOPreparedChunked(string $filePath): void
+    private function import10PDOPreparedChunked(string $filePath): void
     {
         // Direct database connection with prepared statements
         // 100 12ms / 0.15MB
@@ -363,9 +461,7 @@ trait ImportHelper
         }
     }
 
-
-
-    private function import09Concurrent(string $filePath): void
+    private function import11Concurrent(string $filePath): void
     {
         // 100 168ms
         // 1K 172ms
@@ -424,7 +520,7 @@ trait ImportHelper
 
     }
 
-    private function import10LoadDataInfile(string $filePath): void
+    private function import12LoadDataInfile(string $filePath): void
     {
         // MySQL specific, fastest approach
         // 100 10ms / 0MB
