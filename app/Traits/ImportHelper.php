@@ -9,13 +9,17 @@ use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use PDO;
 use PDOStatement;
+
 use function Laravel\Prompts\select;
 
 trait ImportHelper
 {
     protected float $benchmarkStartTime;
+
     protected int $benchmarkStartMemory;
+
     protected int $startRowCount;
+
     protected int $startQueries;
 
     public function handle(): void
@@ -28,8 +32,8 @@ trait ImportHelper
 
         try {
             $this->handleImport($filePath);
-        } catch(\Exception $e) {
-            $this->error(get_class($e) . " " . Str::of($e->getMessage())->limit(100)->value());
+        } catch (\Exception $e) {
+            $this->error(get_class($e).' '.Str::of($e->getMessage())->limit(100)->value());
         }
 
         $this->endBenchmark();
@@ -72,8 +76,8 @@ trait ImportHelper
 
         $formattedTime = match (true) {
             $executionTime >= 60 => sprintf('%dm %ds', floor($executionTime / 60), $executionTime % 60),
-            $executionTime >= 1 => round($executionTime, 2) . 's',
-            default => round($executionTime * 1000) . 'ms',
+            $executionTime >= 1 => round($executionTime, 2).'s',
+            default => round($executionTime * 1000).'ms',
         };
 
         $this->newLine();
@@ -98,8 +102,8 @@ trait ImportHelper
         // conclusion: works but slow and in-efficient
         collect(file($filePath))
             ->skip(1)
-            ->map(fn($line) => str_getcsv($line))
-            ->map(fn($row) => [
+            ->map(fn ($line) => str_getcsv($line))
+            ->map(fn ($row) => [
                 'custom_id' => $row[0],
                 'name' => $row[1],
                 'email' => $row[2],
@@ -110,7 +114,7 @@ trait ImportHelper
                 'created_at' => now(),
                 'updated_at' => now(),
             ])
-            ->each(fn($customer) => Customer::create($customer));
+            ->each(fn ($customer) => Customer::create($customer));
     }
 
     private function import02CollectAndInsert(string $filePath): void
@@ -127,8 +131,8 @@ trait ImportHelper
 
         $allCustomers = collect(file($filePath))
             ->skip(1)
-            ->map(fn($line) => str_getcsv($line))
-            ->map(fn($row) => [
+            ->map(fn ($line) => str_getcsv($line))
+            ->map(fn ($row) => [
                 'custom_id' => $row[0],
                 'name' => $row[1],
                 'email' => $row[2],
@@ -157,8 +161,8 @@ trait ImportHelper
 
         collect(file($filePath))
             ->skip(1)
-            ->map(fn($line) => str_getcsv($line))
-            ->map(fn($row) => [
+            ->map(fn ($line) => str_getcsv($line))
+            ->map(fn ($row) => [
                 'custom_id' => $row[0],
                 'name' => $row[1],
                 'email' => $row[2],
@@ -170,7 +174,7 @@ trait ImportHelper
                 'updated_at' => $now,
             ])
             ->chunk(1000)
-            ->each(fn($chunk) => Customer::insert($chunk->all()));
+            ->each(fn ($chunk) => Customer::insert($chunk->all()));
     }
 
     private function import04LazyCollection(string $filePath): void
@@ -228,7 +232,7 @@ trait ImportHelper
             }
             fclose($handle);
         })
-            ->map(fn($row) => [
+            ->map(fn ($row) => [
                 'custom_id' => $row[0],
                 'name' => $row[1],
                 'email' => $row[2],
@@ -240,7 +244,7 @@ trait ImportHelper
                 'updated_at' => $now,
             ])
             ->chunk($chunkSize)
-            ->each(fn($chunk) => Customer::insert($chunk->all()));
+            ->each(fn ($chunk) => Customer::insert($chunk->all()));
     }
 
     private function import06LazyCollectionWithChunkingAndPdo(string $filePath): void
@@ -262,18 +266,18 @@ trait ImportHelper
             }
             fclose($handle);
         })
-            ->filter(fn($row) => filter_var($row[2], FILTER_VALIDATE_EMAIL))  // Nice filtering syntax
+            ->filter(fn ($row) => filter_var($row[2], FILTER_VALIDATE_EMAIL))  // Nice filtering syntax
             ->chunk(1000)
-            ->each(function($chunk) use ($pdo, $now) {
+            ->each(function ($chunk) use ($pdo, $now) {
                 // Build SQL for this chunk
                 $placeholders = rtrim(str_repeat('(?,?,?,?,?,?,?,?,?),', $chunk->count()), ',');
-                $sql = "INSERT INTO customers (custom_id, name, email, company, city, country, birthday, created_at, updated_at)
-                VALUES " . $placeholders;
+                $sql = 'INSERT INTO customers (custom_id, name, email, company, city, country, birthday, created_at, updated_at)
+                VALUES '.$placeholders;
 
                 // Prepare values
-                $values = $chunk->flatMap(fn($row) => [
+                $values = $chunk->flatMap(fn ($row) => [
                     $row[0], $row[1], $row[2], $row[3], $row[4],
-                    $row[5], $row[6], $now, $now
+                    $row[5], $row[6], $now, $now,
                 ])->all();
 
                 $pdo->prepare($sql)->execute($values);
@@ -321,7 +325,7 @@ trait ImportHelper
         fclose($handle);
     }
 
-    private function import08ManualStreamingWithPdo(string $filePath) : void
+    private function import08ManualStreamingWithPdo(string $filePath): void
     {
         // 100 7ms / 0MB
         // 1K 78ms / 0MB
@@ -352,7 +356,7 @@ trait ImportHelper
                 $columns = array_keys($data[0]);
                 $placeholders = rtrim(str_repeat('(?,?,?,?,?,?,?,?,?),', count($data)), ',');
 
-                $sql = "INSERT INTO customers (" . implode(',', $columns) . ") VALUES " . $placeholders;
+                $sql = 'INSERT INTO customers ('.implode(',', $columns).') VALUES '.$placeholders;
 
                 // Flatten the data array for the query
                 $values = [];
@@ -365,11 +369,11 @@ trait ImportHelper
             }
         }
 
-        if (!empty($data)) {
+        if (! empty($data)) {
             $columns = array_keys($data[0]);
             $placeholders = rtrim(str_repeat('(?,?,?,?,?,?,?,?,?),', count($data)), ',');
 
-            $sql = "INSERT INTO customers (" . implode(',', $columns) . ") VALUES " . $placeholders;
+            $sql = 'INSERT INTO customers ('.implode(',', $columns).') VALUES '.$placeholders;
 
             $values = [];
             foreach ($data as $row) {
@@ -397,10 +401,10 @@ trait ImportHelper
 
         try {
             $pdo = DB::connection()->getPdo();
-            $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare('
             INSERT INTO customers (custom_id, name, email, company, city, country, birthday, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
+        ');
 
             while (($row = fgetcsv($handle)) !== false) {
                 $stmt->execute([
@@ -412,7 +416,7 @@ trait ImportHelper
                     $row[5],
                     $row[6],
                     $now,
-                    $now
+                    $now,
                 ]);
             }
         } finally {
@@ -441,7 +445,7 @@ trait ImportHelper
             while (($row = fgetcsv($handle)) !== false) {
                 $chunks = array_merge($chunks, [
                     $row[0], $row[1], $row[2], $row[3], $row[4],
-                    $row[5], $row[6], $now, $now
+                    $row[5], $row[6], $now, $now,
                 ]);
 
                 if (count($chunks) === $chunkSize * 9) {  // 9 columns
@@ -451,7 +455,7 @@ trait ImportHelper
             }
 
             // Handle remaining records
-            if (!empty($chunks)) {
+            if (! empty($chunks)) {
                 $remainingRows = count($chunks) / 9;
                 $stmt = $this->prepareChunkedStatement($remainingRows);
                 $stmt->execute($chunks);
@@ -507,11 +511,12 @@ trait ImportHelper
                     }
                 }
 
-                if (!empty($customers)) {
+                if (! empty($customers)) {
                     DB::table('customers')->insert($customers);
                 }
 
                 fclose($handle);
+
                 return true;
             };
         }

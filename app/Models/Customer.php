@@ -17,11 +17,10 @@ class Customer extends Model
         'company',
         'city',
         'country',
-        'birthday'
+        'birthday',
     ];
 
     protected $casts = [
-        'birthday' => 'date'
+        'birthday' => 'date',
     ];
-
 }

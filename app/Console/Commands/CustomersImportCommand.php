@@ -19,9 +19,8 @@ class CustomersImportCommand extends Command
 
     public function handleImport($filePath): void
     {
-        $this->info('Hello 👋');
+        $this->import05LazyCollectionWithChunking($filePath);
 
         // Have fun running imports here
     }
-
 }
